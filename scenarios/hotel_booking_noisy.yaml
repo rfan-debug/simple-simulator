@@ -1,0 +1,66 @@
+scenario:
+  name: "Hotel Booking in Noisy Cafe"
+  description: >
+    Hotel booking conversation in a noisy cafe environment with transient
+    noise events.  Tests the system's robustness against background noise.
+
+  environment:
+    noise_profile: "cafe"
+    noise_snr_db: 15
+    network:
+      latency_ms: 80
+      jitter_ms: 20
+      loss: 0
+
+  timeline:
+    - at: 0s
+      action: user_speak
+      audio: "tts://Hello, I'd like to book a hotel room"
+
+    # A phone rings in the background while user is speaking
+    - at: 2.5s
+      action: inject_noise
+      type: "transient"
+      source: "phone_ring"
+
+    # System should still understand despite noise
+    - at: 3s
+      action: assert_system
+      expect:
+        intent: "hotel_booking"
+        did_not: "ask_repeat"
+
+    - at: 4s
+      action: user_speak
+      audio: "tts://Check in next Friday, two nights"
+      speech_style:
+        speed: 1.3
+        interruption: true
+
+    - at: 6s
+      action: expect_tool_call
+      tool: "check_availability"
+      args_contain:
+        checkin: "next_friday"
+        nights: 2
+      timeout_ms: 3000
+
+    # Dog barks during the availability response
+    - at: 8s
+      action: inject_noise
+      type: "transient"
+      source: "dog_bark"
+
+    - at: 10s
+      action: user_speak
+      audio: "tts://The standard room is fine"
+
+    - at: 13s
+      action: expect_tool_call
+      tool: "create_booking"
+      timeout_ms: 5000
+
+    - at: 18s
+      action: assert_system
+      expect:
+        intent: "booking_confirmation"

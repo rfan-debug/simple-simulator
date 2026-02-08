@@ -1,0 +1,58 @@
+scenario:
+  name: "Basic Hotel Booking - Quiet Environment"
+  description: >
+    A straightforward hotel booking conversation in a quiet environment.
+    Tests basic intent recognition, entity extraction, and tool calling.
+
+  environment:
+    noise_profile: "quiet_room"
+    noise_snr_db: 40
+    network:
+      latency_ms: 10
+      jitter_ms: 2
+      loss: 0
+
+  timeline:
+    # User initiates the conversation
+    - at: 0s
+      action: user_speak
+      audio: "tts://Hello, I'd like to book a hotel room please"
+
+    # Verify system understood the booking intent
+    - at: 3s
+      action: assert_system
+      expect:
+        intent: "hotel_booking"
+
+    # User provides check-in details
+    - at: 5s
+      action: user_speak
+      audio: "tts://I want to check in next Friday and stay for two nights"
+      speech_style:
+        speed: 1.0
+
+    # System should call check_availability
+    - at: 8s
+      action: expect_tool_call
+      tool: "check_availability"
+      args_contain:
+        checkin: "next_friday"
+        nights: 2
+      timeout_ms: 5000
+
+    # User selects a room
+    - at: 14s
+      action: user_speak
+      audio: "tts://I'll take the king room please"
+
+    # System should create the booking
+    - at: 17s
+      action: expect_tool_call
+      tool: "create_booking"
+      timeout_ms: 5000
+
+    # Verify final confirmation
+    - at: 22s
+      action: assert_system
+      expect:
+        intent: "booking_confirmation"

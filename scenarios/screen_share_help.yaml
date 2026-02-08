@@ -1,0 +1,50 @@
+scenario:
+  name: "Screen Share Assistance"
+  description: >
+    User shares their screen showing a terminal error and asks for help.
+    Tests multimodal understanding — visual + audio combined.
+
+  environment:
+    noise_profile: "office"
+    noise_snr_db: 25
+    network:
+      latency_ms: 50
+      jitter_ms: 10
+      loss: 0
+
+  timeline:
+    # User shares their screen showing a terminal with an error
+    - at: 0s
+      action: inject_video
+      source: screen
+      app: terminal
+      content: "$ python app.py\nTraceback (most recent call last):\n  File \"app.py\", line 42\n    result = data[index]\nIndexError: list index out of range"
+      duration: 5
+
+    # User speaks about the error while showing the screen
+    - at: 0.5s
+      action: user_speak
+      audio: "tts://Hey, can you see this error on my screen? How do I fix it?"
+
+    # System should understand both the visual and audio context
+    - at: 4s
+      action: assert_system
+      expect:
+        intent: "debug_help"
+
+    # User points at a specific line
+    - at: 6s
+      action: inject_video
+      source: screen
+      app: terminal
+      content: "$ python app.py\nTraceback (most recent call last):\n  File \"app.py\", line 42\n    result = data[index]  # <-- HERE\nIndexError: list index out of range"
+      duration: 3
+
+    - at: 6.5s
+      action: user_speak
+      audio: "tts://It's this line right here, line 42"
+
+    - at: 10s
+      action: assert_system
+      expect:
+        intent: "explain_error"
