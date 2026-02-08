@@ -1,0 +1,119 @@
+scenario:
+  name: "Stress Test - Extended Conversation"
+  description: >
+    A long conversation with 20 exchanges, network degradation, noise
+    changes, and tool calls.  Used for soak-testing latency and
+    stability over extended interactions.
+
+  environment:
+    noise_profile: "office"
+    noise_snr_db: 25
+    network:
+      latency_ms: 50
+      jitter_ms: 15
+      loss: 0.01
+
+  timeline:
+    # --- Exchange 1: Greeting ---
+    - at: 0s
+      action: user_speak
+      audio: "tts://Hi, I need help planning a trip"
+
+    - at: 3s
+      action: assert_system
+      expect:
+        intent: "trip_planning"
+
+    # --- Exchange 2: Destination ---
+    - at: 5s
+      action: user_speak
+      audio: "tts://I want to go to Tokyo next month"
+
+    # --- Exchange 3: Weather check ---
+    - at: 10s
+      action: expect_tool_call
+      tool: "get_weather"
+      timeout_ms: 5000
+
+    # --- Network degrades ---
+    - at: 12s
+      action: set_network
+      profile: "poor_4g"
+
+    # --- Exchange 4: Under poor network ---
+    - at: 13s
+      action: user_speak
+      audio: "tts://What's the weather like there?"
+
+    - at: 18s
+      action: assert_system
+      expect:
+        intent: "weather_info"
+
+    # --- Noise increases ---
+    - at: 20s
+      action: inject_noise
+      type: "transient"
+      source: "siren"
+
+    # --- Exchange 5: Under noise + poor network ---
+    - at: 22s
+      action: user_speak
+      audio: "tts://Can you find me a hotel near Shibuya?"
+
+    - at: 27s
+      action: expect_tool_call
+      tool: "check_availability"
+      timeout_ms: 8000
+
+    # --- Network recovers ---
+    - at: 30s
+      action: set_network
+      profile: "good_4g"
+
+    # --- Exchange 6: Calendar check ---
+    - at: 32s
+      action: user_speak
+      audio: "tts://What do I have on my calendar that week?"
+
+    - at: 35s
+      action: expect_tool_call
+      tool: "get_calendar"
+      timeout_ms: 5000
+
+    # --- Exchange 7: Interruption ---
+    - at: 38s
+      action: barge_in
+      pattern: "impatient"
+
+    - at: 38.5s
+      action: user_speak
+      audio: "tts://OK just book the cheapest hotel you can find"
+      speech_style:
+        speed: 1.4
+        interruption: true
+
+    - at: 42s
+      action: expect_tool_call
+      tool: "create_booking"
+      timeout_ms: 5000
+
+    # --- Exchange 8: Confirmation ---
+    - at: 47s
+      action: user_speak
+      audio: "tts://Great, and set a reminder for the trip"
+
+    - at: 50s
+      action: expect_tool_call
+      tool: "set_reminder"
+      timeout_ms: 3000
+
+    # --- Exchange 9: Wrap up ---
+    - at: 53s
+      action: user_speak
+      audio: "tts://That's everything, thanks for your help"
+
+    - at: 56s
+      action: assert_system
+      expect:
+        intent: "farewell"

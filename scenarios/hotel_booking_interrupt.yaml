@@ -1,0 +1,57 @@
+scenario:
+  name: "Hotel Booking with User Interruption"
+  description: >
+    User interrupts the system while it is listing room options.
+    Tests barge-in handling — the system should stop speaking and
+    respond to the interruption immediately.
+
+  environment:
+    noise_profile: "quiet_room"
+    noise_snr_db: 40
+    network:
+      latency_ms: 10
+      jitter_ms: 2
+      loss: 0
+
+  timeline:
+    - at: 0s
+      action: user_speak
+      audio: "tts://Hi, I need a room for next weekend"
+
+    - at: 3s
+      action: expect_tool_call
+      tool: "check_availability"
+      timeout_ms: 5000
+
+    # Wait for system to start listing options
+    - at: 6s
+      action: wait
+      duration_ms: 1000
+
+    # User interrupts mid-listing with an eager interrupt
+    - at: 7s
+      action: barge_in
+      pattern: "eager_interrupt"
+
+    - at: 7.5s
+      action: user_speak
+      audio: "tts://Just the cheapest one, I don't need anything fancy"
+      speech_style:
+        speed: 1.2
+        interruption: true
+
+    # System should handle the interruption and proceed with the cheapest option
+    - at: 10s
+      action: assert_system
+      expect:
+        intent: "select_cheapest"
+
+    - at: 12s
+      action: expect_tool_call
+      tool: "create_booking"
+      timeout_ms: 5000
+
+    - at: 17s
+      action: assert_system
+      expect:
+        intent: "booking_confirmation"
